@@ -236,6 +236,27 @@ class TspiKey(TspiObject):
         # operation
         except tspi_exceptions.TSS_E_INVALID_HANDLE:
             pass
+    def registerKey(self,keyUUID,parentUUID):
+        '''TSS_RESULT Tspi_Context_RegisterKey(TSS_HCONTEXT hContext,                    TSS_HKEY hKey,
+                                    TSS_FLAG     persistentStorageType,       TSS_UUID uuidKey,
+                                    TSS_FLAG     persistentStorageTypeParent, TSS_UUID uuidParentKey);'''
+        self.uuid=uuid_to_tss_uuid(keyUUID)
+        tss_lib.Tspi_Context_RegisterKey(self.context,self.get_handle(),
+                                         tss_lib.TSS_PS_TYPE_SYSTEM, self.uuid,
+                                         tss_lib.TSS_PS_TYPE_SYSTEM, uuid_to_tss_uuid(parentUUID))
+        return
+    def unregisterKey(self,uuid=None):
+        '''TSS_RESULT Tspi_Context_UnregisterKey(TSS_HCONTEXT hContext, TSS_FLAG  persistentStorageType,
+                                      TSS_UUID     uuidKey,  TSS_HKEY* phKey);'''
+        if uuid is None:
+            tss_lib.Tspi_Context_UnregisterKey(self.context, tss_lib.TSS_PS_TYPE_SYSTEM,
+                                           self.uuid, self.handle)
+        else:
+            tss_lib.Tspi_Context_UnregisterKey(self.context, tss_lib.TSS_PS_TYPE_SYSTEM,
+                                            uuid_to_tss_uuid(uuid), self.handle)
+        #tss_lib.Tspi_Context_UnRegisterKey
+        return
+
     def bind(self,data):
         """
         Seal data to the local TPM using this key
@@ -533,6 +554,7 @@ class TspiWrapKey(TspiKey):
 
     def load_key(self):
         tss_lib.Tspi_Key_LoadKey(self.get_handle(), self.parent)
+
 class TspiContext():
     def __init__(self):
         self.context = ffi.new('TSS_HCONTEXT *')
@@ -622,6 +644,7 @@ class TspiContext():
         tss_lib.Tspi_Context_LoadKeyByUUID(self.context, storagetype, tss_uuid,
                                        tss_key)
         key = TspiKey(self.context, None, handle=tss_key)
+        key.uuid=tss_uuid
         return key
 
     def load_key_by_blob(self, srk, blob):
