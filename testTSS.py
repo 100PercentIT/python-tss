@@ -46,9 +46,11 @@ def getSrkKey(context):
     srkpolicy = srk.get_policy_object(TSS_POLICY_USAGE)
     srkpolicy.set_secret(TSS_SECRET_MODE_SHA1, srkSecret)
     return srk
+
 def getMasterkeyNumberArray():
     #return "MASTERKEY"
     return [77, 65, 83, 84, 69, 82, 75, 69, 89]
+
 def clearKeys():
     try:
         k1 = context.load_key_by_uuid(tss_lib.TSS_PS_TYPE_SYSTEM,old_uuid)
@@ -58,18 +60,47 @@ def clearKeys():
     except:
         pass
 
-context=TspiContext()
-context.connect()
+def get_current_key():
+    context=TspiContext()
+    context.connect()
+    take_ownership(context)
+    srk = getSrkKey(context)
 
-take_ownership(context)
-srk = getSrkKey(context)
+    return context.load_key_by_uuid(tss_lib.TSS_PS_TYPE_SYSTEM,old_uuid)
 
+def get_new_key_and_replace_current(first_run=False):
+    context=TspiContext()
+    context.connect()
+    take_ownership(context)
+    srk = getSrkKey(context)
+
+    if first_run==True:
+        k=context.create_wrap_key(keyFlags,srk.get_handle())
+        k.load_key()
+        k.registerKey(old_uuid,srk_uuid)
+        return k
+    else:
+        kOld=context.load_key_by_uuid(tss_lib.TSS_PS_TYPE_SYSTEM,old_uuid)
+        kNew=context.create_wrap_key(keyFlags,srk.get_handle())
+
+        kNew.registerKey(new_uuid,srk_uuid)
+        kOld.unregisterKey()
+
+        kNew.registerKey(old_uuid,srk_uuid)
+        kNew.unregisterKey(new_uuid)
+        return kNew
+def demo():
+    print("hi!")
 #clearKeys()
-
+demo()
+k=get_current_key()
+k2=get_new_key_and_replace_current()
+k3=get_new_key_and_replace_current()
+'''
 MKencrypted=True
 if not os.path.isfile(masterKeyFilePath):
     MKencrypted=False
-    
+
 if MKencrypted:
     #exchange keys: assumption old_uuid key exists, new_uuid key does not exist. oldkey encrypted masterkeyFile
     kOld=context.load_key_by_uuid(tss_lib.TSS_PS_TYPE_SYSTEM,old_uuid)
@@ -92,3 +123,4 @@ else:
     k.registerKey(old_uuid,srk_uuid)
     with open(masterKeyFilePath, 'wb') as f:
         f.write(k.bind(getMasterkeyNumberArray()))
+'''
