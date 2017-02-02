@@ -21,6 +21,9 @@ masterKeyFilePath= "masterkey"
 keyFlags =  TSS_KEY_TYPE_BIND | TSS_KEY_SIZE_2048 | TSS_KEY_NO_AUTHORIZATION | TSS_KEY_NOT_MIGRATABLE
 
 srkSecret = bytearray([0] * 20)
+def idxToUUID(idx):
+    return uuid.UUID('{'+str(idx).zfill(8)+'-0000-0000-0000-000000000001}')
+
 def take_ownership(context):
     """Take ownership of a TPM
     :param context: The TSS context to use
@@ -60,15 +63,14 @@ def clearKeys():
     except:
         pass
 
-def get_current_key():
+def get_current_key(idx):
     context=TspiContext()
     context.connect()
     take_ownership(context)
     srk = getSrkKey(context)
+    return context.load_key_by_uuid(tss_lib.TSS_PS_TYPE_SYSTEM,idxToUUID(idx))
 
-    return context.load_key_by_uuid(tss_lib.TSS_PS_TYPE_SYSTEM,old_uuid)
-
-def get_new_key_and_replace_current(first_run=False):
+def get_new_key_and_replace_current(idx,first_run=False):
     context=TspiContext()
     context.connect()
     take_ownership(context)
@@ -77,25 +79,25 @@ def get_new_key_and_replace_current(first_run=False):
     if first_run==True:
         k=context.create_wrap_key(keyFlags,srk.get_handle())
         k.load_key()
-        k.registerKey(old_uuid,srk_uuid)
+        k.registerKey(idxToUUID(idx),srk_uuid)
         return k
     else:
-        kOld=context.load_key_by_uuid(tss_lib.TSS_PS_TYPE_SYSTEM,old_uuid)
+        kOld=context.load_key_by_uuid(tss_lib.TSS_PS_TYPE_SYSTEM,idxToUUID(idx))
         kNew=context.create_wrap_key(keyFlags,srk.get_handle())
-
-        kNew.registerKey(new_uuid,srk_uuid)
         kOld.unregisterKey()
-
-        kNew.registerKey(old_uuid,srk_uuid)
-        kNew.unregisterKey(new_uuid)
+        kNew.registerKey(idxToUUID(idx),srk_uuid)
         return kNew
+
 def demo():
     print("hi!")
+
 #clearKeys()
 demo()
+'''
 k=get_current_key()
 k2=get_new_key_and_replace_current()
 k3=get_new_key_and_replace_current()
+'''
 '''
 MKencrypted=True
 if not os.path.isfile(masterKeyFilePath):
