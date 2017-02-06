@@ -7,7 +7,7 @@ from pytss.tspi_defines import *
 import binascii
 
 import os.path
-
+import struct
 
 #from tspi_defines import *
 #import interface
@@ -88,9 +88,38 @@ def get_new_key_and_replace_current(idx,first_run=False):
         kNew.registerKey(idxToUUID(idx),srk_uuid)
         return kNew
 
+'''
+#define TSS_TPMCAP_PROP_MAXNVAVAILABLE      (0x2d)
+#define TSS_TPMCAP_PROP_INPUTBUFFERSIZE     (0x2e)
+'''
+def get_registered_keys():
+    context=TspiContext()
+    context.connect()
+    keys=context.list_keys()
+    #keys.remove(str(srk_uuid))
+    indexes=[]
+    for k in keys:
+      #cut away leading 0
+      indexes.append(str(int(k.split("-")[0])))
+    #print(indexes)
+    return indexes
+def is_key_registered_to_idx(idx):
+    return str(idx) in get_registered_keys()
 def demo():
     print("hi!")
+    context=TspiContext()
+    context.connect()
+    tpm=context.get_tpm_object()
+    get_registered_keys()
+    keyslots = tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,[tss_lib.TSS_TPMCAP_PROP_SLOTS])
+    #keyslots = tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,[tss_lib.TSS_TPMCAP_PROP_MAXNVAVAILABLE])
+    #keyslots = tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,[tss_lib.TSS_TPMCAP_PROP_INPUTBUFFERSIZE])
+    #keyslots = tpm.get_capability(tss_lib.TSS_TPMCAP_NV_LIST,[tss_lib.TSS_TPMCAP_PROP_SLOTS])
 
+
+#[tss_lib.TSS_TPMCAP_PROP_SLOTS])
+    print("slots: {}".format(keyslots))
+    #print("blaa:"+struct.unpack(keyslots))
 #clearKeys()
 demo()
 '''
