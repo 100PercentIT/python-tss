@@ -2,7 +2,8 @@
 from pytss.interface import tss_lib, ffi
 import pytss.tspi_exceptions
 import hashlib
-
+import struct
+import uuid
 
 def uuid_to_tss_uuid(uuid):
     """Converts a Python UUID into a TSS UUID"""
@@ -21,7 +22,13 @@ def uuid_to_tss_uuid(uuid):
 
     return tss_uuid
 
-
+def tss_uuid_to_uuid(tss_uuid):
+     """Converts a TSS UUID to a Python UUID"""
+     node = struct.unpack(">Q", ffi.buffer(tss_uuid.rgbNode, 6)[:].rjust(8, '\00'.encode("ascii")))[0]
+     return uuid.UUID(
+         fields=(tss_uuid.ulTimeLow, tss_uuid.usTimeMid, tss_uuid.usTimeHigh,
+                 tss_uuid.bClockSeqHigh, tss_uuid.bClockSeqLow, node)
+     )
 class TspiObject(object):
     def __init__(self, context, ctype, tss_type, flags, handle=None):
         """
@@ -437,10 +444,15 @@ class TspiTPM(TspiObject):
         """
         resp = ffi.new('BYTE **')
         resplen = ffi.new('UINT32 *')
-        csub = ffi.new('BYTE []', len(sub))
+        ''' csub = ffi.new('BYTE []', len(sub))
         for i in range(len(sub)):
             csub[i] = sub[i]
-        tss_lib.Tspi_TPM_Getcapability(self.handle[0], cap, len(sub), csub,
+        '''
+        csub = ffi.new('BYTE *')
+        for i in range(len(sub)):
+            csub[i] = sub[i]
+        #subCapLength might be different for other APIs, trousers fixes it to sizeof(uint32)
+        tss_lib.Tspi_TPM_GetCapability(self.handle[0], cap,4, csub,
                                    resplen, resp)
         ret = bytearray(resp[0][0:resplen[0]])
         tss_lib.Tspi_Context_FreeMemory(self.context, resp[0])
@@ -668,7 +680,19 @@ class TspiContext():
     def get_tpm_object(self):
         """Returns the TspiTPM associated with this context"""        
         return self.tpm
-
+    def list_keys(self):
+        """
+        Return a tuple of uuid.UUID instances and storagetype values for all
+        available keys on the TPM.
+        """
+        count = ffi.new('UINT32 *')
+        key_info_value = ffi.new('TSS_KM_KEYINFO2**')
+        tss_lib.Tspi_Context_GetRegisteredKeysByUUID2(self.context, 1, ffi.NULL, count, key_info_value)
+        values = []
+        for i in range(count[0]):
+            key_info = key_info_value[0][i]
+            values.append(str(tss_uuid_to_uuid(key_info.keyUUID)))
+        return values
 
 def _c_byte_array(data):
     """
