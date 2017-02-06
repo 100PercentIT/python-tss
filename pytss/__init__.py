@@ -683,7 +683,7 @@ class TspiContext():
     def list_keys(self):
         """
         Return a tuple of uuid.UUID instances and storagetype values for all
-        available keys on the TPM.
+        available keys on the TPM. from @nresare
         """
         count = ffi.new('UINT32 *')
         key_info_value = ffi.new('TSS_KM_KEYINFO2**')
