@@ -65,9 +65,10 @@ def clearKeys(context):
     except:
         pass
 
-def get_current_key(idx):
-    context=TspiContext()
-    context.connect()
+def get_current_key(idx,context=None):
+    if context is None:
+      context=TspiContext()
+      context.connect()
     take_ownership(context)
     srk = getSrkKey(context)
     k= context.load_key_by_uuid(tss_lib.TSS_PS_TYPE_SYSTEM,idxToUUID(idx))
@@ -77,7 +78,7 @@ def get_new_key_and_replace_current(idx,context=None,first_run=False):
     if context is None:
       context=TspiContext()
       context.connect()
-      take_ownership(context)
+    take_ownership(context)
     srk = getSrkKey(context)
 
     if first_run==True:
@@ -97,13 +98,15 @@ def get_new_key_and_replace_current(idx,context=None,first_run=False):
 #define TSS_TPMCAP_PROP_MAXNVAVAILABLE      (0x2d)
 #define TSS_TPMCAP_PROP_INPUTBUFFERSIZE     (0x2e)
 '''
-def get_registered_keys():
-    context=TspiContext()
-    context.connect()
+def get_registered_keys(context=None):
+    if context is None:
+      context=TspiContext()
+      context.connect()
+    take_ownership(context)
     keys=context.list_keys()
-    #keys.remove(str(srk_uuid))
+    keys.remove(str(srk_uuid))
     indexes=[]
-    print("ks:{}".format(keys))
+    #print("ks:{}".format(keys))
     for k in keys:
       #cut away leading 0
       indexes.append(str(int(k.split("-")[0])))
@@ -123,30 +126,29 @@ def demo():
     print("master key={}".format(str(mk)))
     #clearKeys(context)
 
-    print("currently registered key uuids: "+str(get_registered_keys()))
-    if(is_key_registered_to_idx(1)):
-      k=get_current_key(1)      
-      k.bind(getMasterkeyNumberArray())
-      tpm=context.get_tpm_object()
-      tpm.load_key_by_handle(k.get_handle(),srk.get_handle())
-      print("currently registered key uuids: "+str(get_registered_keys()))
-      #print(""+str(k.uuid))
+    print("currently registered key uuids: "+str(get_registered_keys(context)))
+    idx="1"
+    if(idx in get_registered_keys(context)):
+      print("removed registered key with idx "+str(idx))
+      k=get_current_key(idx,context)      
       k.unregisterKey()
+      print("currently registered key uuids: "+str(get_registered_keys(context)))
+
     print("generating/storing deletable key with idx="+str(1))
-    dk=get_new_key_and_replace_current(1,first_run=True)
-    print("dk={}".format(dk.get_keyblob()))
+    dk=get_new_key_and_replace_current(idx,context,first_run=True)
+    print("deleteable key:\ndk={}".format(binascii.hexlify(dk.get_keyblob())))
     encry = dk.bind(mk)
-    print("encrypted mk={}".format(encry))
-    print("unencrypted mk={}".format(dk.unbind(encry)))
+    print("encrypted master key:\nmk={}".format(binascii.hexlify(encry)))
+    print("unencrypted master key={}".format(dk.unbind(encry)))
     print("Got a secure delete request! Key-Cascade rebuilt, generatink new mk")
-    mk=getMasterkeyNumberArrayOne()
-    print("new master key={}".format(mk))
+    mkk=getMasterkeyNumberArrayOne()
+    print("new master key={}".format(mkk))
     print("exchanging dk")
-    dk=get_new_key_and_replace_current(1,first_run=False)
-    print("new dk={}".format(dk.get_keyblob()))
-    encry = dk.bind(mk)
-    print("new encrypted mk={}".format(encry))
-    print("new unencrypted mk={}".format(dk.unbind(encry)))
+    dkk=get_new_key_and_replace_current(idx,context,first_run=False)
+    print("new deletable key:\ndk={}".format(binascii.hexlify(dkk.get_keyblob())))
+    encry = dkk.bind(mkk) 
+    print("new encrypted masterkey:\nmk={}".format(binascii.hexlify(encry)))
+    print("new unencrypted mk={}".format(dkk.unbind(encry)))
     print("Done!")
 
 
@@ -159,7 +161,7 @@ def demo():
 
 
 #[tss_lib.TSS_TPMCAP_PROP_SLOTS])
-    print("slots: {}".format(keyslots))
+    #print("slots: {}".format(keyslots))
     #print("blaa:"+struct.unpack(keyslots))
 #clearKeys()
 demo()
