@@ -243,6 +243,10 @@ class TspiKey(TspiObject):
         # operation
         except tspi_exceptions.TSS_E_INVALID_HANDLE:
             pass
+        except tspi_exceptions.TSS_E_KEY_NOT_LOADED:
+            pass
+        except tspi_exceptions.TPM_E_FAIL:
+            pass
     def registerKey(self,keyUUID,parentUUID):
         '''TSS_RESULT Tspi_Context_RegisterKey(TSS_HCONTEXT hContext,                    TSS_HKEY hKey,
                                     TSS_FLAG     persistentStorageType,       TSS_UUID uuidKey,
