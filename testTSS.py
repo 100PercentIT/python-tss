@@ -53,8 +53,10 @@ def getSrkKey(context):
 def getMasterkeyNumberArray():
     #return "MASTERKEY"
     return [77, 65, 83, 84, 69, 82, 75, 69, 89]
-
-def clearKeys():
+def getMasterkeyNumberArrayOne():
+    #return "MASTERKEY1"
+    return [77, 65, 83, 84, 69, 82, 75, 69, 89,49]
+def clearKeys(context):
     try:
         k1 = context.load_key_by_uuid(tss_lib.TSS_PS_TYPE_SYSTEM,old_uuid)
         k1.unregisterKey()
@@ -68,12 +70,14 @@ def get_current_key(idx):
     context.connect()
     take_ownership(context)
     srk = getSrkKey(context)
-    return context.load_key_by_uuid(tss_lib.TSS_PS_TYPE_SYSTEM,idxToUUID(idx))
+    k= context.load_key_by_uuid(tss_lib.TSS_PS_TYPE_SYSTEM,idxToUUID(idx))
+    return k
 
-def get_new_key_and_replace_current(idx,first_run=False):
-    context=TspiContext()
-    context.connect()
-    take_ownership(context)
+def get_new_key_and_replace_current(idx,context=None,first_run=False):
+    if context is None:
+      context=TspiContext()
+      context.connect()
+      take_ownership(context)
     srk = getSrkKey(context)
 
     if first_run==True:
@@ -86,6 +90,7 @@ def get_new_key_and_replace_current(idx,first_run=False):
         kNew=context.create_wrap_key(keyFlags,srk.get_handle())
         kOld.unregisterKey()
         kNew.registerKey(idxToUUID(idx),srk_uuid)
+        kNew.load_key()
         return kNew
 
 '''
@@ -98,6 +103,7 @@ def get_registered_keys():
     keys=context.list_keys()
     #keys.remove(str(srk_uuid))
     indexes=[]
+    print("ks:{}".format(keys))
     for k in keys:
       #cut away leading 0
       indexes.append(str(int(k.split("-")[0])))
@@ -106,12 +112,47 @@ def get_registered_keys():
 def is_key_registered_to_idx(idx):
     return str(idx) in get_registered_keys()
 def demo():
-    print("hi!")
+    print("Hi from Python-TPM interface!")
+    print("establishing connection to TPM")
     context=TspiContext()
     context.connect()
-    tpm=context.get_tpm_object()
-    get_registered_keys()
-    keyslots = tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,[tss_lib.TSS_TPMCAP_PROP_SLOTS])
+    take_ownership(context)
+    srk = getSrkKey(context)
+    print("connected/logged in to TPM")
+    mk=getMasterkeyNumberArray()
+    print("master key={}".format(str(mk)))
+    #clearKeys(context)
+
+    print("currently registered key uuids: "+str(get_registered_keys()))
+    if(is_key_registered_to_idx(1)):
+      k=get_current_key(1)      
+      k.bind(getMasterkeyNumberArray())
+      tpm=context.get_tpm_object()
+      tpm.load_key_by_handle(k.get_handle(),srk.get_handle())
+      print("currently registered key uuids: "+str(get_registered_keys()))
+      #print(""+str(k.uuid))
+      k.unregisterKey()
+    print("generating/storing deletable key with idx="+str(1))
+    dk=get_new_key_and_replace_current(1,first_run=True)
+    print("dk={}".format(dk.get_keyblob()))
+    encry = dk.bind(mk)
+    print("encrypted mk={}".format(encry))
+    print("unencrypted mk={}".format(dk.unbind(encry)))
+    print("Got a secure delete request! Key-Cascade rebuilt, generatink new mk")
+    mk=getMasterkeyNumberArrayOne()
+    print("new master key={}".format(mk))
+    print("exchanging dk")
+    dk=get_new_key_and_replace_current(1,first_run=False)
+    print("new dk={}".format(dk.get_keyblob()))
+    encry = dk.bind(mk)
+    print("new encrypted mk={}".format(encry))
+    print("new unencrypted mk={}".format(dk.unbind(encry)))
+    print("Done!")
+
+
+
+
+    #keyslots = tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,[tss_lib.TSS_TPMCAP_PROP_SLOTS])
     #keyslots = tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,[tss_lib.TSS_TPMCAP_PROP_MAXNVAVAILABLE])
     #keyslots = tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,[tss_lib.TSS_TPMCAP_PROP_INPUTBUFFERSIZE])
     #keyslots = tpm.get_capability(tss_lib.TSS_TPMCAP_NV_LIST,[tss_lib.TSS_TPMCAP_PROP_SLOTS])
