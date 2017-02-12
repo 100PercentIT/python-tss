@@ -452,10 +452,10 @@ class TspiTPM(TspiObject):
         for i in range(len(sub)):
             csub[i] = sub[i]
         '''
-        csub = ffi.new('BYTE *')
-        for i in range(len(sub)):
-            csub[i] = sub[i]
-        #subCapLength might be different for other APIs, trousers fixes it to sizeof(uint32)
+        csub = ffi.new('BYTE [4]')
+        bytearr = [hex(sub >> i & 0xff) for i in (0,8,16,24)]
+        for i in range(4):
+            csub[i] =int(bytearr[i],16)
         tss_lib.Tspi_TPM_GetCapability(self.handle[0], cap,4, csub,
                                    resplen, resp)
         ret = bytearray(resp[0][0:resplen[0]])
