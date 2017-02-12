@@ -29,6 +29,7 @@ def take_ownership(context):
     :param context: The TSS context to use
     :returns: True on ownership being taken, False if the TPM is already owned
     """
+
     tpm = context.get_tpm_object()
     tpmpolicy = tpm.get_policy_object(TSS_POLICY_USAGE)
     tpmpolicy.set_secret(TSS_SECRET_MODE_SHA1, srkSecret)
@@ -114,6 +115,53 @@ def get_registered_keys(context=None):
     return indexes
 def is_key_registered_to_idx(idx):
     return str(idx) in get_registered_keys()
+def get_status():
+    context=TspiContext()
+    context.connect()
+    take_ownership(context)
+    srk = getSrkKey(context)
+    tpm = context.get_tpm_object()
+    #get_new_key_and_replace_current(10,context,True)
+    versionInfo = binascii.b2a_qp(tpm.get_capability(tss_lib.TSS_TPMCAP_VERSION_VAL,0)).decode("ascii").split("=")
+    #print(versionInfo)
+    #chipVer=binascii.hexlify(versionInfo[5:6]).decode("utf-8")
+    chipVer=".".join(versionInfo[2:7])
+    specLvl=versionInfo[7]
+    vendor=versionInfo[8]
+    statusStr=""
+    statusStr+=("ChipVersion={},SpecLevel={},SpecRevision={},Vendor={}".format(chipVer,specLvl,vendor[0:2],vendor[2:]))     
+    tpmver=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_VERSION,0)).decode("ascii")
+    manufactInfo=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROP_MANUFACTURER,tss_lib.TSS_TCSCAP_PROP_MANUFACTURER_STR)).decode("ascii")
+    statusStr+=(",TPMVer={},ManufacturInfo={}".format(tpmver,manufactInfo)) 
+
+    maxkeyslots = binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,tss_lib.TSS_TPMCAP_PROP_SLOTS)).decode("ascii")
+    maxKeys=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,tss_lib.TSS_TPMCAP_PROP_MAXKEYS)).decode("ascii")
+    maxSess=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,tss_lib.TSS_TPMCAP_PROP_MAXSESSIONS)).decode("ascii")
+    maxContexts=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,tss_lib.TSS_TPMCAP_PROP_MAXCONTEXTS)).decode("ascii")
+    maxInputBuffer=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,tss_lib.TSS_TPMCAP_PROP_INPUTBUFFERSIZE)).decode("ascii")
+    maxNVavail=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,tss_lib.TSS_TPMCAP_PROP_MAXNVAVAILABLE)).decode("ascii")
+    statusStr+=(",KeySlots={},MaxKeys={},MaxSess={},MaxContexts={},InputBufferSize={},MaxNVSpace={}".format(maxkeyslots,maxKeys,maxSess,maxContexts,maxInputBuffer,maxNVavail))
+    
+    #nvIndices=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_NV_LIST,0)).decode("ascii")
+
+    #print("{}".format(nvIndices))
+
+    algsrsa=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_RSA)).decode("ascii")
+    algsdes=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_DES)).decode("ascii")
+    algs3des=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_3DES)).decode("ascii")
+    algssha=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_SHA)).decode("ascii")
+    #algssha256=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_SHA256)).decode("ascii")
+    algshmac=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_HMAC)).decode("ascii")
+    algsaes128=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_AES128)).decode("ascii")
+    algsmgf1=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_MGF1)).decode("ascii")
+    algsaes192=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_AES192)).decode("ascii")
+    algsaes256=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_AES256)).decode("ascii")
+    algsxor=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_XOR)).decode("ascii")
+    algsaes=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_AES)).decode("ascii")
+    statusStr+=(",RSA={},DES={},3DES={},SHA-1={},HMAC={},AES128={},MGF1={},AES192={},AES256={},XOR={},AES={}".format(algsrsa,algsdes,algs3des,algssha,algshmac,algsaes128,algsmgf1,algsaes192,algsaes256,algsxor,algsaes))
+    flags=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_FLAG,0)).decode("ascii")
+    statusStr+=(",Flags={}".format(flags))
+    return statusStr
 def demo():
     print("Hi from Python-TPM interface!")
     print("establishing connection to TPM")
@@ -121,6 +169,63 @@ def demo():
     context.connect()
     take_ownership(context)
     srk = getSrkKey(context)
+    tpm = context.get_tpm_object()
+    #get_new_key_and_replace_current(10,context,True)
+    versionInfo = binascii.b2a_qp(tpm.get_capability(tss_lib.TSS_TPMCAP_VERSION_VAL,0)).decode("ascii").split("=")
+    #print(versionInfo)
+    #chipVer=binascii.hexlify(versionInfo[5:6]).decode("utf-8")
+    chipVer=".".join(versionInfo[2:7])
+    specLvl=versionInfo[7]
+    vendor=versionInfo[8]
+    print("ChipVersion={},SpecLevel={},SpecRevision={},Vendor={}".format(chipVer,specLvl,vendor[0:2],vendor[2:]))     
+    tpmver=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_VERSION,0)).decode("ascii")
+    manufactInfo=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROP_MANUFACTURER,tss_lib.TSS_TCSCAP_PROP_MANUFACTURER_STR)).decode("ascii")
+    print("TPMVer={},ManufacturInfo={}".format(tpmver,manufactInfo)) 
+
+    maxkeyslots = binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,tss_lib.TSS_TPMCAP_PROP_SLOTS)).decode("ascii")
+    maxKeys=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,tss_lib.TSS_TPMCAP_PROP_MAXKEYS)).decode("ascii")
+    maxSess=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,tss_lib.TSS_TPMCAP_PROP_MAXSESSIONS)).decode("ascii")
+    maxContexts=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,tss_lib.TSS_TPMCAP_PROP_MAXCONTEXTS)).decode("ascii")
+    maxInputBuffer=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,tss_lib.TSS_TPMCAP_PROP_INPUTBUFFERSIZE)).decode("ascii")
+    maxNVavail=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,tss_lib.TSS_TPMCAP_PROP_MAXNVAVAILABLE)).decode("ascii")
+    print("KeySlots={},MaxKeys={},MaxSess={},MaxContexts={},InputBufferSize={},MaxNVSpace={}".format(maxkeyslots,maxKeys,maxSess,maxContexts,maxInputBuffer,maxNVavail))
+    
+    #nvIndices=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_NV_LIST,0)).decode("ascii")
+
+    #print("{}".format(nvIndices))
+
+    algsrsa=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_RSA)).decode("ascii")
+    algsdes=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_DES)).decode("ascii")
+    algs3des=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_3DES)).decode("ascii")
+    algssha=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_SHA)).decode("ascii")
+    #algssha256=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_SHA256)).decode("ascii")
+    algshmac=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_HMAC)).decode("ascii")
+    algsaes128=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_AES128)).decode("ascii")
+    algsmgf1=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_MGF1)).decode("ascii")
+    algsaes192=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_AES192)).decode("ascii")
+    algsaes256=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_AES256)).decode("ascii")
+    algsxor=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_XOR)).decode("ascii")
+    algsaes=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_ALG,tss_lib.TSS_ALG_AES)).decode("ascii")
+    print("algs: rsa={},des={},3des={},sha={},hmac={},aes128={},mgf1={},aes192={},aes256={},xor={},aes={}".format(algsrsa,algsdes,algs3des,algssha,algshmac,algsaes128,algsmgf1,algsaes192,algsaes256,algsxor,algsaes))
+    flags=binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_FLAG,0)).decode("ascii")
+    print("Flags={}".format(flags))
+
+    #print("version info {}".format(binascii.hexlify(tpm.get_capability(tss_lib.TSS_TPMCAP_VERSION_VAL,[tss_lib.TSS_TPMCAP_PROP_SLOTS]))))
+
+    #print("version info {}".format())
+    #print("version info {}".format((tpm.get_capability(tss_lib.TSS_TPMCAP_VERSION_VAL,[tss_lib.TSS_TPMCAP_PROP_SLOTS]))[2:6]))
+    
+
+    #keyslots = tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,[tss_lib.TSS_TPMCAP_PROP_MAXNVAVAILABLE])
+    #keyslots = tpm.get_capability(tss_lib.TSS_TPMCAP_PROPERTY,[tss_lib.TSS_TPMCAP_PROP_INPUTBUFFERSIZE])
+    #keyslots = tpm.get_capability(tss_lib.TSS_TPMCAP_NV_LIST,[tss_lib.TSS_TPMCAP_PROP_SLOTS])
+
+
+#[tss_lib.TSS_TPMCAP_PROP_SLOTS])
+    #print("slots: {}".format(keyslots))
+    #print("blaa:"+struct.unpack(keyslots))
+
+    '''
     print("connected/logged in to TPM")
     mk=getMasterkeyNumberArray()
     print("master key={}".format(str(mk)))
@@ -149,7 +254,7 @@ def demo():
     encry = dkk.bind(mkk) 
     print("new encrypted masterkey:\nmk={}".format(binascii.hexlify(encry)))
     print("new unencrypted mk={}".format(dkk.unbind(encry)))
-    print("Done!")
+    print("Done!")'''
 
 
 
@@ -164,7 +269,8 @@ def demo():
     #print("slots: {}".format(keyslots))
     #print("blaa:"+struct.unpack(keyslots))
 #clearKeys()
-demo()
+#demo()
+print("status: "+get_status())
 '''
 k=get_current_key()
 k2=get_new_key_and_replace_current()
